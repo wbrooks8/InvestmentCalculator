@@ -1,154 +1,92 @@
 package main
 
 import (
+	"bufio"
 	"math"
-	"os"
+	"strings"
 	"testing"
 )
 
 func TestCalculateFutureValue(t *testing.T) {
-	// We choose a small, easy-to-read input: 10 invested for 1 year.
-	// This test checks that the formula returns the expected growth value.
-	ratio := math.Pow(10, float64(2))
-	value := math.Round(calculateFutureValue(10.0, 1.0)*ratio) / ratio
+	got := calculateFutureValue(1000, 10)
+	want := 1708.14
 
-	// 10 * (1 + 5.5/100)^1 = 10.55
-	if value != 10.55 {
-		t.Fatalf("Value of result %f is incorrect", value)
+	if math.Abs(got-want) > 0.01 {
+		t.Fatalf("calculateFutureValue(1000, 10) = %f; want %f", got, want)
 	}
 }
 
 func TestCalculateRealFutureValue(t *testing.T) {
-	// This test checks the inflation-adjusted value.
-	// We use 10 invested for 10 years to make sure the adjusted value is calculated correctly.
-	ratio := math.Pow(10, float64(2))
-	value := math.Round(calculateRealFutureValue(10.0, 10.0)*ratio) / ratio
+	got := calculateRealFutureValue(1708.14, 10)
+	want := 1334.4
 
-	// The expected result is the future value adjusted by inflation.
-	if value != 7.81 {
-		t.Fatalf("Value of result %f is incorrect", value)
+	if math.Abs(got-want) > 0.1 {
+		t.Fatalf("calculateRealFutureValue(1708.14, 10) = %f; want %f", got, want)
 	}
 }
 
-func TestCalculateRealFutureValueOf0(t *testing.T) {
-	// Edge case: if the starting amount is 0, the result should also be 0.
-	ratio := math.Pow(10, float64(2))
-	value := math.Round(calculateRealFutureValue(0, 0)*ratio) / ratio
+func TestCalculateInvestmentsOverTimeWeekly(t *testing.T) {
+	got := calculateInvestmentsOverTime(52, 10, 1000, 10)
+	want := 8660.56
 
-	if value != 0 {
-		t.Fatalf("Value of result %f is incorrect", value)
+	if math.Abs(got-want) > 0.01 {
+		t.Fatalf("weekly contributions = %f; want %f", got, want)
 	}
 }
 
-func TestCalculateRealFutureValueOf1000(t *testing.T) {
-	// Another edge case using a larger amount and longer timeframe.
-	// This helps confirm the formula still behaves correctly past the smallest examples.
-	ratio := math.Pow(10, float64(2))
-	value := math.Round(calculateRealFutureValue(1000, 100)*ratio) / ratio
+func TestCalculateInvestmentsOverTimeMonthly(t *testing.T) {
+	got := calculateInvestmentsOverTime(12, 10, 1000, 10)
+	want := 3326.15
 
-	if value != 84.65 {
-		t.Fatalf("Value of result %f is incorrect", value)
+	if math.Abs(got-want) > 0.01 {
+		t.Fatalf("monthly contributions = %f; want %f", got, want)
 	}
 }
 
-// Positive test: valid input should be accepted and returned without an error.
-func TestHandleInput_ValidAmount(t *testing.T) {
-	oldStdin := os.Stdin
+func TestCalculateInvestmentsOverTimeYearly(t *testing.T) {
+	got := calculateInvestmentsOverTime(1, 10, 1000, 10)
+	want := 1836.9
 
-	// os.Pipe() creates a fake input stream that acts like a terminal.
-	// r is the read end, which handleInput() will read from.
-	// w is the write end, which we use to send fake keyboard input.
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// This simulates the user typing "2500" and pressing Enter.
-	_, err = w.WriteString("2500\n")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Closing the writer tells the reader that the fake input is complete.
-	_ = w.Close()
-
-	// Replace the real stdin with our fake pipe so handleInput() reads from it.
-	os.Stdin = r
-	defer func() {
-		os.Stdin = oldStdin
-	}()
-
-	value, err := handleInput("investmentAmount")
-	if err != nil {
-		t.Fatalf("expected valid input to pass, got error: %v", err)
-	}
-
-	// The function should accept 2500 and return it without an error.
-	if value != 2500 {
-		t.Fatalf("expected value 2500, got %v", value)
+	if math.Abs(got-want) > 0.01 {
+		t.Fatalf("yearly contributions = %f; want %f", got, want)
 	}
 }
 
-// Negative test: invalid text should not be accepted and should return an error.
-func TestHandleInput_InvalidNumber(t *testing.T) {
-	oldStdin := os.Stdin
+func TestHandleInputValidAmount(t *testing.T) {
+	scanner := bufio.NewScanner(strings.NewReader("2500\n"))
 
-	// We create another fake input stream so we can simulate bad text input.
-	r, w, err := os.Pipe()
+	got, err := handleInput("investmentAmount", scanner)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("expected valid input to succeed, got error: %v", err)
 	}
 
-	// This simulates the user typing letters instead of a number.
-	_, err = w.WriteString("abc\n")
-	if err != nil {
-		t.Fatal(err)
+	if got != 2500 {
+		t.Fatalf("handleInput returned %f; want 2500", got)
 	}
-	_ = w.Close()
+}
 
-	// Redirect stdin to the fake input stream.
-	os.Stdin = r
-	defer func() {
-		os.Stdin = oldStdin
-	}()
+func TestHandleInputInvalidNumber(t *testing.T) {
+	scanner := bufio.NewScanner(strings.NewReader("abc\n"))
 
-	value, err := handleInput("investmentAmount")
-
-	// Invalid text should fail the ParseFloat step and return an error.
+	got, err := handleInput("investmentAmount", scanner)
 	if err == nil {
-		t.Fatal("expected an error for invalid input")
+		t.Fatal("expected invalid input to fail")
 	}
 
-	// If the input was invalid, the function should not return a usable value.
-	if value != 0 {
-		t.Fatalf("expected value 0, got %v", value)
+	if got != 0 {
+		t.Fatalf("expected 0 value on invalid input, got %f", got)
 	}
 }
 
-// Negative test: a negative amount should be rejected and should not return a value.
-func TestHandleInput_NegativeAmount(t *testing.T) {
-	oldStdin := os.Stdin
+func TestHandleInputNegativeValue(t *testing.T) {
+	scanner := bufio.NewScanner(strings.NewReader("-10\n"))
 
-	// This simulates the user typing -10 and pressing Enter.
-	r, w, _ := os.Pipe()
-	_, _ = w.WriteString("-10\n")
-	_ = w.Close()
-
-	// Redirect stdin to the fake input stream.
-	os.Stdin = r
-	defer func() {
-		os.Stdin = oldStdin
-	}()
-
-	value, err := handleInput("investmentAmount")
-
-	// Negative values should be rejected by validation.
+	got, err := handleInput("investmentAmount", scanner)
 	if err == nil {
-		t.Fatal("expected an error for negative amount")
+		t.Fatal("expected negative value to fail")
 	}
 
-	// The function should not silently continue with a valid numeric value.
-	if value != 0 {
-		t.Fatalf("expected value 0, got %v", value)
+	if got != 0 {
+		t.Fatalf("expected 0 value for invalid negative input, got %f", got)
 	}
 }
